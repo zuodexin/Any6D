@@ -1184,6 +1184,7 @@ def compute_crop_window_tf_batch(pts=None, H=None, W=None, poses=None, K=None, c
     return tf
 
   B = len(poses)
+  old_type = torch.tensor(1.0).type()
   torch.set_default_tensor_type('torch.cuda.FloatTensor')
   if method=='box_3d':
     radius = mesh_diameter*crop_ratio/2
@@ -1204,6 +1205,7 @@ def compute_crop_window_tf_batch(pts=None, H=None, W=None, poses=None, K=None, c
     top = center[:,1]-radius
     bottom = center[:,1]+radius
     tfs = compute_tf_batch(left, right, top, bottom)
+    torch.set_default_tensor_type(old_type)
     return tfs
 
   else:

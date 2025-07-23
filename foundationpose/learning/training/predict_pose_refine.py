@@ -152,6 +152,7 @@ class PoseRefinePredictor:
     @rgb: np array (H,W,3)
     @ob_in_cams: np array (N,4,4)
     '''
+    old_type = torch.tensor(1.0).type()
     torch.set_default_tensor_type('torch.cuda.FloatTensor')
     # logging.info(f'ob_in_cams:{ob_in_cams.shape}')
     tf_to_center = np.eye(4)
@@ -203,6 +204,7 @@ class PoseRefinePredictor:
             uvs = (pose_data.Ks[b:b+bs]@centers.reshape(-1,3,1)).reshape(-1,3)
             uvs = uvs/uvs[:,2:3]
             uvs = (pose_data.tf_to_crops[b:b+bs]@uvs.reshape(-1,3,1)).reshape(-1,3)
+            torch.set_default_tensor_type(old_type)
             return uvs[:,:2]
 
           rot_delta = output["rot"]
@@ -290,7 +292,9 @@ class PoseRefinePredictor:
       canvas_refined = make_grid_image(canvas_refined, nrow=1, padding=padding, pad_value=255)
       canvas = make_grid_image([canvas, canvas_refined], nrow=2, padding=padding, pad_value=255)
       torch.cuda.empty_cache()
+      torch.set_default_tensor_type(old_type)
       return B_in_cams_out, canvas
 
+    torch.set_default_tensor_type(old_type)
     return B_in_cams_out, None
 

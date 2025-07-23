@@ -228,3 +228,8 @@ instantmesh/figures*/
 instantmesh/*.sh
 instantmesh/blender/
 instantmesh/.restore/
+
+# data
+dataset
+.env
+anchor_results

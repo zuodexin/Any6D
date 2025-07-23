@@ -93,7 +93,7 @@ tensorboard
 PyMCubes
 trimesh
 rembg
-transformers==4.34.1
+transformers==4.48.3
 diffusers==0.20.2
 bitsandbytes
 imageio[ffmpeg]
@@ -102,4 +102,3 @@ plyfile
 pandas
 XlsxWriter
 onnxruntime
-

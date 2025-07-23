@@ -16,8 +16,8 @@ from sam2_instantmesh import *
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description="Set experiment name and paths")
-    parser.add_argument("--anchor_folder", type=str, default="/home/miruware/ssd_4tb/cvpr_2025_results/anchor_results/dexycb_reference_view_ours", help="Path to the YCB-V model info JSON")
-    parser.add_argument("--ycb_model_path", type=str, default="/home/miruware/ssd_4tb/dataset/ho3d/YCB_Video_Models", help="Path to the YCB Video Models")
+    parser.add_argument("--anchor_folder", type=str, default="./anchor_results_ours/dexycb_reference_view_ours", help="Path to the YCB-V model info JSON")
+    parser.add_argument("--ycb_model_path", type=str, default="./dataset/ho3d/YCB_Video_Models", help="Path to the YCB Video Models")
     parser.add_argument("--img_to_3d", action="store_true",help="Running with InstantMesh+SAM2")
     args = parser.parse_args()
 
