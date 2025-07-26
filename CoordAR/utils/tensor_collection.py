@@ -25,7 +25,7 @@ import pandas as pd
 import torch
 
 # MegaPose
-from src.utils.distributed import get_rank, get_world_size
+from CoordAR.utils.distributed import get_rank, get_world_size
 
 
 def concatenate(datas):

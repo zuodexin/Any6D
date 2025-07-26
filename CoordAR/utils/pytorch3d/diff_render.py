@@ -1,7 +1,7 @@
 from typing import List, Tuple, Union
 import warnings
 from joblib import Memory
-from src.utils.trimesh_utils import as_mesh
+from CoordAR.utils.trimesh_utils import as_mesh
 import torch
 import torch.nn as nn
 import copy
@@ -39,7 +39,7 @@ from pytorch3d.renderer import (
     Textures,
 )
 
-from src.utils.pytorch3d.light_free_shader import LightFreeShader
+from CoordAR.utils.pytorch3d.light_free_shader import LightFreeShader
 
 det = lambda t: np.linalg.det(t.detach().cpu().numpy())
 

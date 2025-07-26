@@ -6,8 +6,8 @@ from pytorch3d.structures import Meshes, join_meshes_as_batch
 import numpy as np
 import traceback
 
-from src.utils.misc import LD2DL
-from src.utils.tensor_collection import to_device
+from CoordAR.utils.misc import LD2DL
+from CoordAR.utils.tensor_collection import to_device
 
 
 class CollateImporter(object):

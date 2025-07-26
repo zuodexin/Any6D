@@ -2,7 +2,7 @@ import os
 import json
 import numpy as np
 from PIL import Image
-from src.utils.lib3d.numpy import get_root_project
+from CoordAR.utils.lib3d.numpy import get_root_project
 
 intrinsic = np.array([[262.5, 0.0, 128], [0.0, 262.5, 128], [0.0, 0.0, 1.0]])
 black_rgb = Image.new(

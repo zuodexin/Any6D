@@ -23,7 +23,7 @@ from pathlib import Path
 import ipdb
 import numpy as np
 
-from src.data.megapose.lib3d.symmetries import ContinuousSymmetry, DiscreteSymmetry
+from CoordAR.data.megapose.lib3d.symmetries import ContinuousSymmetry, DiscreteSymmetry
 
 # Local Folder
 from .object_dataset import RigidObject, RigidObjectDataset

@@ -1,7 +1,7 @@
 import os
 import numpy as np
 import pathlib
-from src.utils.inout import get_root_project
+from CoordAR.utils.inout import get_root_project
 from scipy.spatial.transform import Rotation
 from scipy.spatial.distance import cdist
 

@@ -102,3 +102,6 @@ plyfile
 pandas
 XlsxWriter
 onnxruntime
+
+
+git+https://github.com/facebookresearch/detectron2.git

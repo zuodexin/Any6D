@@ -13,18 +13,18 @@ import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm, trange
 from mmcv.image.io import imread
-from bop_toolkit_lib import inout
-from src.third_party.custom_bop_toolkit.bop_toolkit_lib.dataset_params import (
+from CoordAR.third_party.custom_bop_toolkit.bop_toolkit_lib import inout
+from CoordAR.third_party.custom_bop_toolkit.bop_toolkit_lib.dataset_params import (
     get_model_params,
     get_present_scene_ids,
     get_split_params,
 )
-from src.utils.inout import convert_list_to_dataframe
+from CoordAR.utils.inout import convert_list_to_dataframe
 
 
-from src.utils.logging import get_logger
-from src.utils.mask_utils import binary_mask_to_rle
-from src.utils.misc import prepare_dir
+from CoordAR.utils.logging import get_logger
+from CoordAR.utils.mask_utils import binary_mask_to_rle
+from CoordAR.utils.misc import prepare_dir
 
 logger = get_logger(__name__)
 
@@ -314,7 +314,7 @@ class BOPSceneDataset(Dataset):
         )
 
 
-# python -m src.data.bop.scene_dataset
+# python -m CoordAR.data.bop.scene_dataset
 if __name__ == "__main__":
     scene_dataset = BOPSceneDataset(
         "data/BOP",

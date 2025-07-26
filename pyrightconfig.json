@@ -1,0 +1,11 @@
+{
+    "include": [
+        "CoordAR"
+    ],
+    "exclude": [
+        "**/node_modules",
+        "**/__pycache__",
+        "data",
+        "dataset"
+    ]
+}

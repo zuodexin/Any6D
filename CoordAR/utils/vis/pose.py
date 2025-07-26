@@ -3,7 +3,7 @@ import ipdb
 import mmcv
 import numpy as np
 
-from src.utils.vis.colormap import colormap
+from CoordAR.utils.vis.colormap import colormap
 
 
 def draw_projected_box3d(

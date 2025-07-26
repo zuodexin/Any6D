@@ -1,7 +1,8 @@
+import numpy as np
 import torch
 from scipy.spatial.distance import cdist
 
-from src.utils.transform_tensor import transform_pts
+from CoordAR.utils.transform_tensor import transform_pts
 
 
 def calc_xyz_bp_batch(depth, R, T, K, fmt="BHWC"):
@@ -166,3 +167,40 @@ def denormalize_xyz(xyz, model_center, model_extent, format="BHWC"):
     else:
         raise ValueError("Invalid format")
     return xyz_dnorm
+
+
+def depth_to_cam_coords_points(
+    depth_map: np.ndarray, intrinsic: np.ndarray
+) -> tuple[np.ndarray, np.ndarray]:
+    """
+    Convert a depth map to camera coordinates.
+
+    Args:
+        depth_map (np.ndarray): Depth map of shape (H, W).
+        intrinsic (np.ndarray): Camera intrinsic matrix of shape (3, 3).
+
+    Returns:
+        tuple[np.ndarray, np.ndarray]: Camera coordinates (H, W, 3)
+    """
+    H, W = depth_map.shape
+    assert intrinsic.shape == (3, 3), "Intrinsic matrix must be 3x3"
+    assert (
+        intrinsic[0, 1] == 0 and intrinsic[1, 0] == 0
+    ), "Intrinsic matrix must have zero skew"
+
+    # Intrinsic parameters
+    fu, fv = intrinsic[0, 0], intrinsic[1, 1]
+    cu, cv = intrinsic[0, 2], intrinsic[1, 2]
+
+    # Generate grid of pixel coordinates
+    u, v = np.meshgrid(np.arange(W), np.arange(H))
+
+    # Unproject to camera coordinates
+    x_cam = (u - cu) * depth_map / fu
+    y_cam = (v - cv) * depth_map / fv
+    z_cam = depth_map
+
+    # Stack to form camera coordinates
+    cam_coords = np.stack((x_cam, y_cam, z_cam), axis=-1).astype(np.float32)
+
+    return cam_coords

@@ -1,0 +1,3 @@
+[submodule "CoordAR/third_party/custom_bop_toolkit"]
+	path = CoordAR/third_party/custom_bop_toolkit
+	url = https://github.com/zuodexin/bop_toolkit.git

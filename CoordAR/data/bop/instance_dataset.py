@@ -14,37 +14,33 @@ import os.path as osp
 import torch
 from torch.utils.data import Dataset
 from tqdm import tqdm, trange
+from CoordAR.utils.augment import aug_bbox_DZI
+from bop_toolkit_lib import inout
 from bop_toolkit_lib.misc import calc_pts_diameter2
-from src.models.vggt.utils.geometry import depth_to_cam_coords_points
-from src.third_party.custom_bop_toolkit.bop_toolkit_lib import inout
-from src.data.bop.scene_dataset import BOPSceneDataset
-from src.data.megapose.obj_ds.bop_object_dataset import BOPObjectDataset
-from src.data.megapose.shapenet import (
+
+from CoordAR.utils.xyz_utils import depth_to_cam_coords_points
+from CoordAR.data.bop.scene_dataset import BOPSceneDataset
+from CoordAR.data.megapose.obj_ds.bop_object_dataset import BOPObjectDataset
+from CoordAR.data.megapose.shapenet import (
     depth_backproject,
     depth_to_roc_map,
     depth_to_xyz,
     normalize_depth_bp_minmax,
     normalize_depth_bp_zscore,
 )
-from src.third_party.custom_bop_toolkit.bop_toolkit_lib.dataset_params import (
-    get_model_params,
-    get_present_scene_ids,
-    get_split_params,
-)
-from src.utils.augment import aug_bbox_DZI
-from src.utils.cropping import (
+from CoordAR.utils.cropping import (
     crop_resize_by_warp_affine,
     get_K_crop_resize,
     get_affine_transform,
     xywh2xyxy,
 )
-from src.utils.inout import convert_list_to_dataframe
+from CoordAR.utils.inout import convert_list_to_dataframe
 
 
-from src.utils.logging import get_logger
-from src.utils.mask_utils import binary_mask_to_rle, cocosegm2mask
-from src.utils.misc import prepare_dir
-from src.utils.pysixd.RT_transform import allocentric_to_egocentric
+from CoordAR.utils.logging import get_logger
+from CoordAR.utils.mask_utils import binary_mask_to_rle, cocosegm2mask
+from CoordAR.utils.misc import prepare_dir
+from CoordAR.utils.pysixd.RT_transform import allocentric_to_egocentric
 
 logger = get_logger(__name__)
 
@@ -90,13 +86,58 @@ def remove_depth_outliers_by_diameter(depth_map, K, mask, diameter, background_v
     return processed_depth, outlier_mask
 
 
+def largest_connected_component_bbox(mask):
+    """
+    找出二值掩码中面积最大的连通区域并返回其包围框
+
+    参数:
+        mask (numpy.ndarray): 二值掩码图像(0和1或0和255)
+
+    返回:
+        tuple: (x, y, w, h) 包围框坐标和宽高
+              如果mask全为0，则返回None
+    """
+    # 确保mask是二值图像(0和255)
+    if mask.dtype != np.uint8:
+        mask = mask.astype(np.uint8)
+    if np.max(mask) == 1:
+        mask = mask * 255
+
+    # 查找连通区域
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(
+        mask, connectivity=8
+    )
+
+    # 如果没有连通区域(只有背景)，返回None
+    if num_labels < 2:
+        return None
+
+    # 找到面积最大的区域(跳过背景区域0)
+    max_area = 0
+    max_idx = 1  # 从1开始，0是背景
+
+    for i in range(1, num_labels):
+        area = stats[i, cv2.CC_STAT_AREA]
+        if area > max_area:
+            max_area = area
+            max_idx = i
+
+    # 获取最大区域的包围框 (x, y, w, h)
+    x = stats[max_idx, cv2.CC_STAT_LEFT]
+    y = stats[max_idx, cv2.CC_STAT_TOP]
+    w = stats[max_idx, cv2.CC_STAT_WIDTH]
+    h = stats[max_idx, cv2.CC_STAT_HEIGHT]
+
+    return (x, y, w, h)
+
+
 def estimate_obj_size(depth, mask, K, TCO, percentile_clip=10):
     fx, fy = K[0, 0], K[1, 1]
     cx, cy = K[0, 2], K[1, 2]
 
     ys, xs = np.where(mask)
     zs = depth[ys, xs]
-    valid = zs > 0
+    valid = zs > 0.01
     xs, ys, zs = xs[valid], ys[valid], zs[valid]
 
     if len(zs) == 0:
@@ -106,24 +147,46 @@ def estimate_obj_size(depth, mask, K, TCO, percentile_clip=10):
     Y = (ys - cy) * zs / fy
     Z = zs
 
-    # 去除极端值
-    def percentile_mask(arr):
-        low, high = np.percentile(arr, percentile_clip), np.percentile(
-            arr, 100 - percentile_clip
-        )
-        return (arr >= low) & (arr <= high)
+    # 根据mask大小粗略估计直径
+    mask_bbox = largest_connected_component_bbox(mask)
+    if mask_bbox is not None:
+        # Get bbox coordinates
+        _, _, w, h = mask_bbox
+        # Calculate diagonal length in pixels
+        bbox_diagonal_px = np.sqrt(w**2 + h**2)
+        # Use median depth for conversion
+        median_depth = np.median(zs)
+        # Convert to 3D (approximate diameter)
+        approx_diameter = bbox_diagonal_px * median_depth / fx
+    else:
+        approx_diameter = 550  # very large
 
-    valid = percentile_mask(X) & percentile_mask(Y) & percentile_mask(Z)
+    # # 去除极端值
+    # def percentile_mask(arr):
+    #     low, high = np.percentile(arr, percentile_clip), np.percentile(
+    #         arr, 100 - percentile_clip
+    #     )
+    #     return (arr >= low) & (arr <= high)
 
-    X = X[valid]
-    Y = Y[valid]
-    Z = Z[valid]
+    # valid = percentile_mask(X) & percentile_mask(Y) & percentile_mask(Z)
 
-    points = np.stack([X, Y, Z], axis=-1)
-    points = (points - TCO[:3, 3]) @ TCO[:3, :3].T
+    # X = X[valid]
+    # Y = Y[valid]
+    # Z = Z[valid]
 
-    points = points[np.random.permutation(len(points))[:1000]]  # 随机采样1000个点
-    diameter = calc_pts_diameter2(points) * 1.5
+    # # 计算点云中心
+    # points = np.stack([X, Y, Z], axis=-1)
+    # center = np.median(points, axis=0)
+
+    # # 去除中心之外超出半径1.5倍距离的点
+    # distances = np.linalg.norm(points - center, axis=1)
+    # valid = distances < (1.5 * approx_diameter / 2)
+    # points = points[valid]
+
+    # points = points[np.random.permutation(len(points))[:1000]]  # 随机采样1000个点
+    # diameter = calc_pts_diameter2(points).astype(np.float32)
+
+    diameter = np.float32(approx_diameter)
 
     extents = np.ones(3, dtype=np.float32) * diameter * np.sqrt(1 / 3)
     return extents, diameter
@@ -141,6 +204,7 @@ class BOPInstanceDataset(Dataset):
         clean_bg=False,
         normalize_by="diameter",
         diameter="oracle",
+        remove_depth_by_diameter=True,
     ):
         super().__init__()
 
@@ -152,6 +216,7 @@ class BOPInstanceDataset(Dataset):
         self.clean_bg = clean_bg
         self.normalize_by = normalize_by
         self.diameter = diameter
+        self.remove_depth_by_diameter = remove_depth_by_diameter
 
         self.build_index()
 
@@ -253,6 +318,7 @@ class BOPInstanceDataset(Dataset):
         points = obj.points
         extents = obj.extents
         diameter = obj.diameter_meters
+        gt_diameter = diameter
         symmetries = obj.make_symmetry_poses()
         if self.load_cad:
             mesh = obj.model_p3d
@@ -331,6 +397,7 @@ class BOPInstanceDataset(Dataset):
                 logger.warning(
                     f"Failed to estimate extents for {scene_id} {im_id} {gt_id}: {e}"
                 )
+                raise ValueError()
         elif self.diameter == "measured":
             diameter = obj.diameter_meters * np.random.uniform(0.9, 1.1)
             extents = np.ones(3, dtype=np.float32) * diameter * np.sqrt(1 / 3)
@@ -353,15 +420,17 @@ class BOPInstanceDataset(Dataset):
             normalize_by=self.normalize_by,
         )
 
-        depth_patch, outlier_mask = remove_depth_outliers_by_diameter(
-            depth_patch,
-            K_crop,
-            vis_mask_patch,
-            diameter=np.linalg.norm(extents),
-            background_value=0,
-        )
-
-        depth_bp_mask = vis_mask_patch & ~outlier_mask
+        if self.remove_depth_by_diameter:
+            depth_patch, outlier_mask = remove_depth_outliers_by_diameter(
+                depth_patch,
+                K_crop,
+                vis_mask_patch,
+                diameter=np.linalg.norm(extents),
+                background_value=0,
+            )
+            depth_bp_mask = vis_mask_patch & ~outlier_mask
+        else:
+            depth_bp_mask = vis_mask_patch
         depth_bp = (
             normalize_depth_bp_zscore(
                 depth_backproject(
@@ -391,7 +460,7 @@ class BOPInstanceDataset(Dataset):
             TCO=TCO.astype(np.float32),
             K_crop=K_crop,
             nocs=rearrange(nocs, "h w c -> c h w"),
-            roc=rearrange(roc, "h w c -> c h w"),
+            roc=rearrange(roc, "h w c -> c h w").clip(0, 1),
             extents=extents,
             diameter=diameter,
             model_center=model_center.astype(np.float32),
@@ -400,6 +469,7 @@ class BOPInstanceDataset(Dataset):
             points=points,
             symmetries=torch.from_numpy(symmetries).float(),
             resize_ratio=resize_ratio.astype(np.float32),
+            gt_diameter=gt_diameter,
         )
         if self.load_cad:
             data.update(dict(mesh=mesh))
@@ -414,11 +484,12 @@ if __name__ == "__main__":
         "ycbv",
         "test",
         only_bop19_test=True,
-        choose_obj=[13],
+        choose_obj=[18],
     )
     obj_ds = BOPObjectDataset("data/BOP/ycbv/models")
-    instance_dataset = BOPInstanceDataset(scene_dataset, obj_ds)
+    instance_dataset = BOPInstanceDataset(scene_dataset, obj_ds, diameter="estimated")
     print(len(instance_dataset))
 
     for i in trange(len(instance_dataset)):
         data = instance_dataset[i]
+        print(data["diameter"])

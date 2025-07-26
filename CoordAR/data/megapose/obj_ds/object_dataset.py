@@ -32,19 +32,19 @@ from pytorch3d.structures import Meshes
 from joblib import Memory
 from scipy.spatial import distance
 
-from src.third_party.custom_bop_toolkit.bop_toolkit_lib import inout
-from src.utils.pytorch3d.diff_render import setup_meshes
+from CoordAR.third_party.custom_bop_toolkit.bop_toolkit_lib import inout
+from CoordAR.utils.pytorch3d.diff_render import setup_meshes
 
 # MegaPose
-from src.data.megapose.lib3d.symmetries import (
+from CoordAR.data.megapose.lib3d.symmetries import (
     ContinuousSymmetry,
     DiscreteSymmetry,
     make_symmetries_poses,
 )
-from src.utils.pytorch3d.diff_render import render_posed_object
-from src.utils.pytorch3d.mesh_utils import repeat_meshes
-from src.utils.tensor_collection import TensorCollection
-from src.utils.xyz_utils import calc_xyz_bp_batch, normalize_xyz
+from CoordAR.utils.pytorch3d.diff_render import render_posed_object
+from CoordAR.utils.pytorch3d.mesh_utils import repeat_meshes
+from CoordAR.utils.tensor_collection import TensorCollection
+from CoordAR.utils.xyz_utils import calc_xyz_bp_batch, normalize_xyz
 
 
 CACHE_DIR = "./.cache/obj_ds"

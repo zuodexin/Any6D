@@ -29,7 +29,7 @@ from omegaconf import OmegaConf
 import omegaconf
 
 # MegaPose
-from src.utils import pylogger
+from CoordAR.utils import pylogger
 from mmengine.dist import get_dist_info
 
 logger = pylogger.RankedLogger(__name__, rank_zero_only=True)

@@ -16,20 +16,20 @@ import json
 from scipy.spatial.transform import Rotation
 
 from tqdm import trange
-from src.utils.logging import get_logger
-from src.utils.lib3d.numpy import (
+from CoordAR.utils.logging import get_logger
+from CoordAR.utils.lib3d.numpy import (
     get_obj_poses_from_template_level,
     inverse_transform,
     load_index_level0_in_level2,
 )
-from src.utils.lib3d.rotation_conversions import convert_rotation_representation
-from src.utils.shapeNet_utils import (
+from CoordAR.utils.lib3d.rotation_conversions import convert_rotation_representation
+from CoordAR.utils.shapeNet_utils import (
     train_categories,
     test_categories,
     open_pose,
     open_image,
 )
-from src.utils.inout import convert_list_to_dataframe
+from CoordAR.utils.inout import convert_list_to_dataframe
 from pytorch_lightning import seed_everything
 
 logger = get_logger(__name__)
@@ -92,7 +92,7 @@ def normalize_depth_bp_zscore(depth_bp, mask, n_std=3):
     # depth_bp： (H, W, C)
     if mask.sum() == 0:
         return np.zeros_like(depth_bp) + 0.5
-    mask = mask.astype(np.bool)
+    mask = mask.astype(bool)
     mean = np.mean(depth_bp[mask], axis=0).reshape(1, 1, 3)
     std = np.std(depth_bp[mask], axis=0).reshape(1, 1, 3)
     normalized = (depth_bp - mean) / (std * n_std + 1e-6) + 0.5

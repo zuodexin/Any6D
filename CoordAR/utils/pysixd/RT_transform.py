@@ -15,7 +15,7 @@ from transforms3d.quaternions import (
     quat2mat,
 )
 from transforms3d.axangles import axangle2mat
-from src.utils.pose_utils import quat2mat_torch
+from CoordAR.utils.pose_utils import quat2mat_torch
 from .se3 import se3_inverse, se3_mul
 
 

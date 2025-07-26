@@ -17,23 +17,33 @@ from multiprocessing import Pool
 from scipy.spatial.transform import Rotation
 from scipy.spatial.distance import cdist
 
+from CoordAR.data.bop.vis.visualization import show_batch
 from bop_toolkit_lib import inout
-from src.data.bop.instance_dataset import BOPInstanceDataset
-from src.data.bop.scene_dataset import BOPSceneDataset
-from src.data.bop.ycbv_filter import YCBVKeyframeFilter
-from src.data.collate_importer import default_collate_fn
-from src.models.memchip.visualization import show_batch
-from src.data.megapose.obj_ds.bop_object_dataset import BOPObjectDataset
-from src.scripts.paper.report_view_variation import angle_error
-from src.utils.inout import convert_list_to_dataframe
-from src.utils.logging import get_logger
-from src.utils.misc import prepare_dir
-from src.utils.pysixd.RT_transform import (
+from CoordAR.data.bop.instance_dataset import BOPInstanceDataset
+from CoordAR.data.bop.scene_dataset import BOPSceneDataset
+from CoordAR.data.bop.ycbv_filter import YCBVKeyframeFilter
+from CoordAR.data.collate_importer import default_collate_fn
+
+# from CoordAR.models.memchip.visualization import show_batch
+from CoordAR.data.megapose.obj_ds.bop_object_dataset import BOPObjectDataset
+from CoordAR.utils.inout import convert_list_to_dataframe
+from CoordAR.utils.logging import get_logger
+from CoordAR.utils.misc import prepare_dir
+from CoordAR.utils.pysixd.RT_transform import (
     allocentric_to_egocentric,
     egocentric_to_allocentric,
 )
 
 logger = get_logger(__name__)
+
+
+def angle_error(mat1, mat2):
+    mat1 = mat1[:3, :3]
+    mat2 = mat2[:3, :3]
+    relative_pose = mat1 @ np.linalg.inv(mat2)
+    trace = np.diag(relative_pose).sum().clip(-1, 3)
+    error = np.rad2deg(np.arccos((trace - 1) / 2))
+    return error
 
 
 def farthest_point_sampling_rotations(rotations, k):
@@ -130,7 +140,7 @@ class BOPFewShot(Dataset):
             label_to_indices = instances.groupby("label").indices
             # sample rotation by farthest rotations for every label
             predefined_poses = np.load(
-                "src/utils/lib3d/predefined_poses/obj_poses_level1.npy"
+                "CoordAR/utils/lib3d/predefined_poses/obj_poses_level1.npy"
             )
             for label in tqdm(labels):
                 rotations = []
@@ -275,6 +285,7 @@ class BOPFewShot(Dataset):
             roc = instance["roc"]
             extents = instance["extents"]
             diameter = instance["diameter"]
+            gt_diameter = instance["gt_diameter"]
             if self.normalize_by == "diameter":
                 obj_size = diameter
             elif self.normalize_by == "max_axis":
@@ -296,6 +307,7 @@ class BOPFewShot(Dataset):
                     extents=extents,
                     model_center=model_center,
                     diameter=diameter,
+                    gt_diameter=gt_diameter,
                     obj_size=obj_size,
                     TCO=TCO,
                     K_crop=instance["K_crop"],
@@ -328,6 +340,7 @@ class BOPFewShot(Dataset):
         template_data["template_tco"] = stack("TCO")
         template_data["template_K_crop"] = stack("K_crop")
         template_data["template_depth_bp"] = stack("depth_bp")
+        template_data["template_obj_size"] = stack("obj_size").astype(np.float32)
 
         # relative data
         stack = lambda key: np.stack(
@@ -353,6 +366,8 @@ class BOPFewShot(Dataset):
         trans = TCO[:, :3, 3]
         rel_pose = TCO[0:1] @ np.linalg.inv(TCO)  # first as reference
         obj_size = stack("obj_size").reshape(-1, 1, 1, 1)
+        template_obj_size = template_data["template_obj_size"]
+
         rel_rocs = (
             (
                 einsum(
@@ -363,7 +378,7 @@ class BOPFewShot(Dataset):
                 + rel_pose[:, :3, 3, None, None]
             )
             - trans[:1, :, None, None]
-        ) * mask[:, None] / obj_size + 0.5
+        ) * mask[:, None] / template_obj_size + 0.5
         template_data["template_rel_rocs"] = rel_rocs[:-1]
         template_data["template_rel_scale"] = rel_scale_in_crop[:-1]
         template_data["template_rot_allo"] = rot_allo[:-1]
@@ -385,8 +400,9 @@ class BOPFewShot(Dataset):
             query_rel_rot_allo=rel_rot_allo[-1],
             extents=query["extents"],
             model_center=query["model_center"],
+            gt_diameter=query["gt_diameter"],
             diameter=query["diameter"],
-            obj_size=query["obj_size"],
+            query_obj_size=query["obj_size"],
             query_TCO=query["TCO"],
             query_K_crop=query["K_crop"],
             points=query["points"],
@@ -482,6 +498,6 @@ def test_lm():
         ipdb.set_trace()
 
 
-# python -m src.data.bop.few_shot_dataset
+# python -m CoordAR.data.bop.few_shot_dataset
 if __name__ == "__main__":
     test_lm()
