@@ -6,7 +6,7 @@
 # distribution of this software and related documentation without an express
 # license agreement from NVIDIA CORPORATION is strictly prohibited.
 import copy
-
+import ipdb
 import numpy as np
 import nvdiffrast.torch as dr
 
@@ -333,7 +333,6 @@ class Any6D:
         pcd = o3d.geometry.PointCloud()
         pcd.points = o3d.utility.Vector3dVector(points)
         pcd.colors = o3d.utility.Vector3dVector(np.tile([0.529, 0.808, 0.922], (len(pcd.points), 1)))  # 모든 point를 파란색으로
-
 
         pcd_clean, ind = pcd.remove_statistical_outlier(nb_neighbors=int(points.shape[0] * 0.01), std_ratio=2.0)
         pcd_clean.translate(-pcd_clean.get_oriented_bounding_box(robust=True).center)

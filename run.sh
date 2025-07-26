@@ -1,4 +1,5 @@
 export CUDA_VISIBLE_DEVICES=7
+export PYTHONPATH=CoordAR/third_party/custom_bop_toolkit:${PYTHONPATH}
 
 # python run_ho3d_anchor.py \
 #   --anchor_folder ./anchor_results/dexycb_reference_view_ours \
