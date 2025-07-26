@@ -94,7 +94,7 @@ if __name__ == "__main__":
             obj_name = f"{obj_id:06d}"
             if os.path.exists(os.path.join(model_out, f"center_mesh_{obj_name}.obj")):
                 logger.info(f"center_mesh_{obj_name}.obj found, skip generation")
-                break
+                continue
             else:
                 mesh_path = os.path.join(model_out, f"{obj_id:06d}.obj")
                 mask = sample["template_masks_visib"][0]
