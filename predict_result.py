@@ -64,6 +64,12 @@ if __name__ == "__main__":
         help="Directory to save the output results",
         default="logs/predict",
     )
+    parser.add_argument(
+        "--obj_ids",
+        type=str,
+        default="all",
+        help="Object IDs to process, use 'all' for all objects",
+    )
     args = parser.parse_args()
 
     """
@@ -75,8 +81,11 @@ if __name__ == "__main__":
         args.split,
         args.split_type if args.split_type != "none" else None,
     )
-    dp_eval_model = get_model_params(args.datasets_path, args.dataset, "eval")
-    obj_ids = dp_eval_model["obj_ids"]
+    if args.obj_ids == "all":
+        dp_eval_model = get_model_params(args.datasets_path, args.dataset, "eval")
+        obj_ids = dp_eval_model["obj_ids"]
+    else:
+        obj_ids = [int(x) for x in args.obj_ids.split(",")]
 
     for obj_id in obj_ids:
         obj_name = f"{obj_id:06d}"

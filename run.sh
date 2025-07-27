@@ -15,21 +15,35 @@ export PYTHONPATH=CoordAR/third_party/custom_bop_toolkit:${PYTHONPATH}
 
 # python run_demo.py
 
-# predict linemod
+# predict linemod, 1, 6, 13, 14
 
-python predict_result.py \
-  --dataset lm \
-  --datasets_path data/BOP \
-  --split test \
-  --split_type none \
-  --img_to_3d 
+for obj_id in 1 6 13 14; do
+  python predict_result.py \
+    --dataset lm \
+    --datasets_path data/BOP \
+    --split test \
+    --split_type none \
+    --img_to_3d \
+    --obj_id $obj_id &> logs/predict/lm_test/${obj_id}.log &
+  echo "predicting for object ID: $obj_id"
+done
 
+# predict ycbv 7,9,21
 
-# predict ycbv
+export CUDA_VISIBLE_DEVICES=6
+for obj_id in 7 9 21; do
+  python predict_result.py \
+    --dataset ycbv \
+    --datasets_path data/BOP \
+    --split test \
+    --split_type none \
+    --img_to_3d \
+    --obj_id $obj_id &> logs/predict/ycbv_test/${obj_id}.log &
+  echo "predicting for object ID: $obj_id"
+done
 
-# python predict_result.py \
-#   --dataset ycbv \
-#   --datasets_path data/BOP \
-#   --split test \
-#   --split_type none \
-#   --img_to_3d 
+# clean process
+# ps -aux | grep predict_result.py | awk '{print $2}' | xargs kill -9
+
+# wait for all background processes to finish
+wait
