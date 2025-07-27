@@ -22,7 +22,7 @@ python predict_result.py \
   --datasets_path data/BOP \
   --split test \
   --split_type none \
-  # --img_to_3d 
+  --img_to_3d 
 
 
 # predict ycbv

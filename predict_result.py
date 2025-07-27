@@ -15,6 +15,7 @@ from CoordAR.data.bop.scene_dataset import BOPSceneDataset
 from CoordAR.data.megapose.obj_ds.bop_object_dataset import BOPObjectDataset
 from CoordAR.utils.logging import get_logger
 from CoordAR.utils.misc import prepare_dir
+from bop_toolkit_lib.dataset_params import get_model_params, get_split_params
 from estimater import Any6D
 
 from foundationpose.Utils import (
@@ -68,33 +69,42 @@ if __name__ == "__main__":
     """
         init dataset
     """
-    scene_dataset = BOPSceneDataset(
+    dp_split = get_split_params(
         args.datasets_path,
         args.dataset,
         args.split,
         args.split_type if args.split_type != "none" else None,
-        only_bop19_test=True,
     )
-    obj_ds = BOPObjectDataset(f"{args.datasets_path}/{args.dataset}/models")
-    instance_dataset = BOPInstanceDataset(scene_dataset, obj_ds)
-    few_shot_ds = BOPFewShot(
-        instance_dataset,
-        num_ref=1,
-        ref="first_frame",
-    )
+    dp_eval_model = get_model_params(args.datasets_path, args.dataset, "eval")
+    obj_ids = dp_eval_model["obj_ids"]
 
-    img_to_3d = args.img_to_3d
+    for obj_id in obj_ids:
+        obj_name = f"{obj_id:06d}"
+        scene_dataset = BOPSceneDataset(
+            args.datasets_path,
+            args.dataset,
+            args.split,
+            args.split_type if args.split_type != "none" else None,
+            only_bop19_test=True,
+            choose_obj=[obj_id],
+        )
+        obj_ds = BOPObjectDataset(f"{args.datasets_path}/{args.dataset}/models")
+        instance_dataset = BOPInstanceDataset(scene_dataset, obj_ds)
+        few_shot_ds = BOPFewShot(
+            instance_dataset,
+            num_ref=1,
+            ref="first_frame",
+        )
 
-    # build model for each object
-    model_out = f"{args.output_dir}/{args.dataset}_{args.split}/model"
-    prepare_dir(model_out)
-    if img_to_3d:
-        for sample in tqdm(few_shot_ds):
-            obj_id = sample["obj_id"]
-            obj_name = f"{obj_id:06d}"
+        img_to_3d = args.img_to_3d
+
+        # build model for each object
+        model_out = f"{args.output_dir}/{args.dataset}_{args.split}/model"
+        prepare_dir(model_out)
+        if img_to_3d:
+            sample = few_shot_ds[0]
             if os.path.exists(os.path.join(model_out, f"center_mesh_{obj_name}.obj")):
                 logger.info(f"center_mesh_{obj_name}.obj found, skip generation")
-                continue
             else:
                 mesh_path = os.path.join(model_out, f"{obj_id:06d}.obj")
                 mask = sample["template_masks_visib"][0]
@@ -116,44 +126,45 @@ if __name__ == "__main__":
                 mesh = align_mesh_to_coordinate(mesh)
                 mesh.export(os.path.join(model_out, f"center_mesh_{obj_name}.obj"))
 
-    pose_out = f"{args.output_dir}/{args.dataset}_{args.split}/pose"
-    prepare_dir(pose_out)
-    predictions = []
-    for sample in tqdm(few_shot_ds):
-        obj_id = sample["obj_id"]
-        intrinsic = sample["query_K_crop"]
-        obj_name = f"{obj_id:06d}"
-        mask = sample["template_masks_visib"][0]
-        color = rearrange(sample["template_imgs"][0], "c h w -> h w c")
-        depth = sample["query_depth"]
+        pose_out = f"{args.output_dir}/{args.dataset}_{args.split}/pose/{obj_name}"
+        prepare_dir(pose_out)
+        predictions = []
 
         mesh = trimesh.load(os.path.join(model_out, f"center_mesh_{obj_name}.obj"))
-
         est = Any6D(symmetry_tfs=None, mesh=mesh, debug_dir=pose_out, debug=2)
+        est.reset_object(mesh=mesh, symmetry_tfs=None)
 
-        pred_pose = est.register_any6d(
-            K=intrinsic,
-            rgb=color,
-            depth=depth,
-            ob_mask=mask > 0,
-            iteration=5,
-            name=obj_name,
-        )
-        predictions.append(
-            dict(
-                scene_id=sample["scene_id"],
-                im_id=sample["im_id"],
-                obj_id=obj_id,
-                gt_id=sample["gt_id"],
-                score=f"{1.0:.4f}",
-                R=" ".join(
-                    [f"{r:.4f}" for r in pred_pose[:3, :3].reshape(-1).tolist()]
-                ),
-                t=" ".join(
-                    [f"{tt:.4f}" for tt in pred_pose[:3, 3].reshape(-1).tolist()]
-                ),
-                time=-1,
+        for sample in tqdm(few_shot_ds):
+            intrinsic = sample["query_K_crop"]
+            mask = sample["template_masks_visib"][0]
+            color = rearrange(sample["template_imgs"][0], "c h w -> h w c")
+            depth = sample["query_depth"]
+
+            pred_pose = est.register_any6d(
+                K=intrinsic,
+                rgb=color,
+                depth=depth,
+                ob_mask=mask > 0,
+                iteration=5,
+                name=obj_name,
             )
-        )
-    df = pd.DataFrame(predictions)
-    df.to_csv(os.path.join(pose_out, "predictions.csv"), index=False)
+
+            print(pred_pose)
+            predictions.append(
+                dict(
+                    scene_id=sample["scene_id"],
+                    im_id=sample["im_id"],
+                    obj_id=obj_id,
+                    gt_id=sample["gt_id"],
+                    score=f"{1.0:.4f}",
+                    R=" ".join(
+                        [f"{r:.4f}" for r in pred_pose[:3, :3].reshape(-1).tolist()]
+                    ),
+                    t=" ".join(
+                        [f"{tt:.4f}" for tt in pred_pose[:3, 3].reshape(-1).tolist()]
+                    ),
+                    time=-1,
+                )
+            )
+        df = pd.DataFrame(predictions)
+        df.to_csv(os.path.join(pose_out, "predictions.csv"), index=False)
