@@ -139,16 +139,19 @@ if __name__ == "__main__":
             iteration=5,
             name=obj_name,
         )
-
-        print(pred_pose)
         predictions.append(
             dict(
                 scene_id=sample["scene_id"],
                 im_id=sample["im_id"],
                 obj_id=obj_id,
                 gt_id=sample["gt_id"],
-                R=pred_pose[:3, :3],
-                t=pred_pose[:3, 3],
+                score=f"{1.0:.4f}",
+                R=" ".join(
+                    [f"{r:.4f}" for r in pred_pose[:3, :3].reshape(-1).tolist()]
+                ),
+                t=" ".join(
+                    [f"{tt:.4f}" for tt in pred_pose[:3, 3].reshape(-1).tolist()]
+                ),
                 time=-1,
             )
         )
