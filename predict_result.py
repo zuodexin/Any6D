@@ -135,7 +135,7 @@ if __name__ == "__main__":
             K=intrinsic,
             rgb=color,
             depth=depth,
-            ob_mask=mask,
+            ob_mask=mask > 0,
             iteration=5,
             name=obj_name,
         )

@@ -13,6 +13,8 @@ export PYTHONPATH=CoordAR/third_party/custom_bop_toolkit:${PYTHONPATH}
 #   --ycb_model_path dataset/ho3d/YCB_Video_Models
 
 
+# python run_demo.py
+
 # predict linemod
 
 python predict_result.py \
@@ -20,7 +22,7 @@ python predict_result.py \
   --datasets_path data/BOP \
   --split test \
   --split_type none \
-  --img_to_3d 
+  # --img_to_3d 
 
 
 # predict ycbv
